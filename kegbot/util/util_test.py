@@ -39,5 +39,10 @@ class SimpleGraphTestCase(unittest.TestCase):
     self.assertEquals(['a', 'c'], self.graph.ShortestPath('a', 'c'))
     self.assertEquals(['a', 'c', 'e', 'f'], self.graph.ShortestPath('a', 'f'))
 
+class MiscTestCase(unittest.TestCase):
+  def testGetVersion(self):
+    version = util.get_version('bogus', 'foo')
+    self.assertEquals('foo', version)
+
 if __name__ == '__main__':
   unittest.main()

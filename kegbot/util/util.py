@@ -29,6 +29,8 @@ import time
 import traceback
 import logging
 
+import pytz
+
 ### Misc classes
 def Enum(*defs):
   """http://code.activestate.com/recipes/413486/"""
@@ -376,4 +378,57 @@ def LogTraceback(log_method, tb_tuple=None):
     for line in frame.split('\n'):
       log_method('    ' + line.strip())
   log_method('Error was: %s: %s' % (tb_type, tb_value))
+
+def tzswap(dt, tz_from, tz_to):
+  """Reinterprets a datetime object produced with one timezone with another.
+
+  The input and output are both naieve datetimes, that is, those without any
+  tzinfo.
+  """
+  assert dt.tzinfo == None
+  # First, reinterpret the source datetime obj as being in the 'from' timezone.
+  res = tz_from.localize(dt)
+  # Next, update with the intended timezone.
+  res = res.astimezone(tz_to)
+  # Finally, strip away the new timezone to leave us with a naieve datetime once
+  # again.
+  res = res.replace(tzinfo=None)
+  return res
+
+def utc_to_local(dt, local_tz_name=None):
+  if not local_tz_name:
+    return dt
+  local_tz = pytz.timezone(local_tz_name)
+  utc_tz = pytz.timezone('UTC')
+  return tzswap(dt, utc_tz, local_tz)
+
+def local_to_utc(dt, local_tz_name=None):
+  if not local_tz_name:
+    return dt
+  local_tz = pytz.timezone(local_tz_name)
+  utc_tz = pytz.timezone('UTC')
+  return tzswap(dt, local_tz, utc_tz)
+
+def datetime_to_iso8601str(dt, original_tz_name):
+  try:
+    dt = local_to_utc(dt, original_tz_name)
+  except pytz.UnknownTimeZoneError:
+    pass
+  return dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+def iso8601str_to_datetime(datestr, dest_tz_name):
+  dt = datetime.datetime.strptime(datestr, '%Y-%m-%dT%H:%M:%SZ')
+  try:
+    dt = utc_to_local(dt, dest_tz_name)
+  except pytz.UnknownTimeZoneError:
+    pass
+  return dt
+
+def get_version(package_name, default='Unknown'):
+  """Returns the package version, or default value."""
+  try:
+    import pkg_resources
+    return pkg_resources.get_distribution(package_name).version
+  except (ImportError, pkg_resources.DistributionNotFound):
+    return default
 

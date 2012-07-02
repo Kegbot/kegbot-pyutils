@@ -2,7 +2,7 @@
 """Library of miscellaneous utilities used within Kegbot.
 """
 
-VERSION = '0.1'
+VERSION = '0.1.1'
 DOCLINES = __doc__.split('\n')
 SHORT_DESCRIPTION = DOCLINES[0]
 LONG_DESCRIPTION = '\n'.join(DOCLINES[2:])
@@ -27,6 +27,7 @@ def setup_package():
       ],
       install_requires = [
         'python-gflags >= 1.8',
+        'pytz',
       ],
       include_package_data = True,
   )
