@@ -69,7 +69,8 @@ gflags.DEFINE_boolean('log_to_stdout', True,
     'Send log messages to the console')
 
 gflags.DEFINE_boolean('verbose', os.environ.get('VERBOSE') is not None,
-    'Generate extra logging information.')
+    'Generate extra logging information.',
+    allow_override=True)
 
 
 class App(object):
