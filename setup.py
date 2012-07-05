@@ -2,7 +2,7 @@
 """Library of miscellaneous utilities used within Kegbot.
 """
 
-VERSION = '0.1.3'
+VERSION = '0.1.4'
 DOCLINES = __doc__.split('\n')
 SHORT_DESCRIPTION = DOCLINES[0]
 LONG_DESCRIPTION = '\n'.join(DOCLINES[2:])
