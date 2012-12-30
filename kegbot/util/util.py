@@ -137,7 +137,7 @@ class AttrDict(dict):
   def __getattr__(self, name):
     try:
       return self.__getitem__(name)
-    except KeyError, e:
+    except KeyError:
       raise AttributeError, 'No attribute named %s' % name
 
 
@@ -283,46 +283,6 @@ def daemonize():
   os.open('/dev/null', os.O_RDONLY)
   os.open('/dev/null', os.O_RDWR)
   os.open('/dev/null', os.O_RDWR)
-
-def instantBAC(gender, weight, alcpct, ounces):
-  if alcpct <= 0:
-    return 0.0
-
-  # calculate weight in metric KGs
-  if weight <= 0:
-    return 0.0
-
-  kg_weight = weight/2.2046
-
-  # gender based water-weight
-  if gender == 'male':
-    waterp = 0.58
-  else:
-    waterp = 0.49
-
-  # find total body water (in milliliters)
-  bodywater = kg_weight * waterp * 1000.0
-
-  # weight in grams of 1 oz alcohol
-  alcweight = 29.57*0.79;
-
-  # rate of alcohol per subject's total body water
-  alc_per_body_ml = alcweight/bodywater
-
-  # find alcohol concentration in blood (80.6% water)
-  alc_per_blood_ml = alc_per_body_ml * 0.806
-
-  # switch to "grams percent"
-  grams_pct = alc_per_blood_ml * 100.0
-
-  # determine how much we've really consumed
-  alc_consumed = ounces * (alcpct/100.0)
-  instant_bac = alc_consumed * grams_pct
-
-  return instant_bac
-
-def decomposeBAC(bac,seconds_ago,rate=0.02):
-  return max(0.0,bac - (rate * (seconds_ago/3600.0)))
 
 def str_to_addr(strdata, default_host='127.0.0.1', default_port=0):
   """Extract a tuple of (hostname, port) from a string.

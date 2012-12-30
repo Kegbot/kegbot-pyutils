@@ -32,8 +32,6 @@ import os
 import signal
 import sys
 import threading
-import time
-import traceback
 
 import gflags
 
@@ -111,7 +109,7 @@ class App(object):
     try:
       app = cls(name)
       app.Start()
-    except Exception, e:
+    except Exception:
       logger = lambda msg: sys.stderr.write('%s\n' % msg)
       logger('Uncaught exception in app %s. Stack trace:' % name)
       util.LogTraceback(logger)
