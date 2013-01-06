@@ -2,8 +2,6 @@
 *.DS_Store
 *.pyc
 *.egg
+*.egg-info
 
-distribute-*
-*egg-info
 dist/
-
