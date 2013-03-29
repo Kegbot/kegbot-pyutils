@@ -23,14 +23,8 @@ datetime instances to ISO8601 strings, and decoding them back.
 """
 
 import datetime
+import isodate
 import types
-
-try:
-  from django.conf import settings
-  TIME_ZONE = settings.TIME_ZONE
-except ImportError:
-  TIME_ZONE = 'America/Los_Angeles'
-
 from . import util
 
 try:
@@ -48,7 +42,7 @@ class JSONEncoder(json.JSONEncoder):
   """JSONEncoder which translate datetime instances to ISO8601 strings."""
   def default(self, obj):
     if isinstance(obj, datetime.datetime):
-      return util.datetime_to_iso8601str(obj, TIME_ZONE)
+      return isodate.datetime_isoformat(obj)
     return json.JSONEncoder.default(self, obj)
 
 def _ToAttrDict(obj):
@@ -68,12 +62,11 @@ def _ToAttrDict(obj):
     for k, v in obj.iteritems():
       if k.endswith('date') or k.endswith('time') or k.startswith('date') or k.startswith('last_login'):
         try:
-          obj[k] = util.iso8601str_to_datetime(v, TIME_ZONE)
+          obj[k] = isodate.parse_datetime(v)
         except ValueError:
           pass
     return util.AttrDict(obj)
   return obj
-
 
 def loads(data):
   return json.loads(data, object_hook=_ToAttrDict)

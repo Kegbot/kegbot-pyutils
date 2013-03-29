@@ -9,43 +9,40 @@ import unittest
 from . import kbjson
 from . import util
 
-SAMPLE_INPUT = """
+TIMEZONE = pytz.timezone('America/Los_Angeles')
+
+SAMPLE_DECODE = """
 {
   "event": "my-event",
   "sub" : {
     "list" : [1,2,3]
   },
-  "iso_time": "2010-06-11T23:01:01Z",
+  "iso_time": "2010-06-11T23:01:01-08:00",
   "bad_time": "123-45"
 }
 """
 
+SAMPLE_ENCODE = {
+  'time': datetime.datetime(2010, 6, 11, 23, 1, 1, tzinfo=TIMEZONE),
+  'notatime': '123',
+}
+
 class JsonTestCase(unittest.TestCase):
-  def setUp(self):
-    pass
-
-  def testTzSwap(self):
-    PACIFIC = pytz.timezone('America/Los_Angeles')
-    EASTERN = pytz.timezone('America/New_York')
-    GMT = pytz.timezone('GMT')
-
-    eastern_stamp = datetime.datetime(2010, 12, 30, 8)
-    as_pacific = util.tzswap(eastern_stamp, EASTERN, PACIFIC)
-    self.assertEqual(as_pacific, datetime.datetime(2010, 12, 30, 5))
-    self.assertEqual(as_pacific.tzinfo, None)
-
-
-  def testBasicUse(self):
-    tz = 'America/Los_Angeles'
-    kbjson.TIME_ZONE = tz
-    obj = kbjson.loads(SAMPLE_INPUT)
-    print obj
+  def testDecode(self):
+    obj = kbjson.loads(SAMPLE_DECODE)
     self.assertEqual(obj.event, "my-event")
     self.assertEqual(obj.sub.list, [1,2,3])
 
-    expected = util.utc_to_local(datetime.datetime(2010, 6, 11, 23, 1, 1), tz)
+    expected = datetime.datetime(2010, 6, 11, 23, 1, 1, tzinfo=TIMEZONE)
     self.assertEqual(obj.iso_time, expected)
     self.assertEqual(obj.bad_time, "123-45")  # fails strptime
+
+  def testEncode(self):
+    s = kbjson.dumps(SAMPLE_ENCODE)
+    self.assertTrue('"time": "2010-06-11T23:01:01-08:00"' in s)
+
+  def testTransitivity(self):
+    self.assertEqual(SAMPLE_ENCODE, kbjson.loads(kbjson.dumps(SAMPLE_ENCODE)))
 
 if __name__ == '__main__':
   unittest.main()
