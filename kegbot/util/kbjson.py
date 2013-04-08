@@ -60,11 +60,12 @@ def _ToAttrDict(obj):
     # Try to convert any "time" or "date" fields into datetime objects.  If the
     # format doesn't match, just leave it alone.
     for k, v in obj.iteritems():
-      if k.endswith('date') or k.endswith('time') or k.startswith('date') or k.startswith('last_login'):
-        try:
-          obj[k] = isodate.parse_datetime(v)
-        except ValueError:
-          pass
+      if type(v) in types.StringTypes:
+        if k.endswith('date') or k.endswith('time') or k.startswith('date') or k.startswith('last_login'):
+          try:
+            obj[k] = isodate.parse_datetime(v)
+          except ValueError:
+            pass
     return util.AttrDict(obj)
   return obj
 
