@@ -23,7 +23,7 @@ def setup_package():
       packages = find_packages(exclude=['testdata']),
       namespace_packages = ['kegbot'],
       install_requires = [
-        'isodate == 0.4.9',
+        'isodate',
         'python-gflags >= 1.8',
       ],
       include_package_data = True,
