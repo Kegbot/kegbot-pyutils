@@ -18,9 +18,13 @@
 
 """Various unit conversion routines."""
 
+from past.builtins import cmp
+from builtins import object
+from future.utils import raise_
 import types
 
 from . import util
+from future.utils import with_metaclass
 
 UNITS = util.Enum(*(
   'Liter',
@@ -61,18 +65,18 @@ CONVERSIONS = {
 class ConversionError(Exception):
   """Raised if a conversion is not possible"""
 
-class _UnitConverter:
+class _UnitConverter(object):
   def __init__(self, table):
     self._table = {}
     self._table.update(table)
 
     all_units = set()
-    for unit_from, unit_to in table.keys():
+    for unit_from, unit_to in list(table.keys()):
       all_units.add(unit_from)
       all_units.add(unit_to)
 
     # Generate reverse conversion factors for those given
-    for k, v in table.iteritems():
+    for k, v in table.items():
       unit_from, unit_to = k
       reverse_value = 1.0/v
       reverse_key = (unit_to, unit_from)
@@ -81,7 +85,7 @@ class _UnitConverter:
       if reverse_key not in self._table:
         self._table[reverse_key] = reverse_value
 
-    unit_graph = util.SimpleGraph(self._table.keys())
+    unit_graph = util.SimpleGraph(list(self._table.keys()))
 
     # Generate all possible conversion factors
     for unit_from in all_units:
@@ -112,8 +116,8 @@ class _UnitConverter:
       return amt
     k = (from_unit, to_unit)
     if k not in self._table:
-      raise ConversionError, "Don't know how to convert %s to %s" % (from_unit,
-                                                                     to_unit)
+      raise_(ConversionError, "Don't know how to convert %s to %s" % (from_unit,
+                                                                     to_unit))
     return float(amt) * self._table[k]
 
 UnitConverter = _UnitConverter(CONVERSIONS)
@@ -129,9 +133,8 @@ class _QuantityMeta(type):
         return self.Amount(to_units)
       setattr(cls, prop_name, convert_fn)
 
-class Quantity(object):
+class Quantity(with_metaclass(_QuantityMeta, object)):
   DEFAULT_UNITS = UNITS.Milliliter
-  __metaclass__ = _QuantityMeta
 
   def __init__(self, amount, units=None, from_units=None):
     if units is None:
@@ -143,7 +146,7 @@ class Quantity(object):
 
   def __add__(self, other, subtract=False):
     val = 0
-    if isinstance(other, (types.IntType, types.LongType, types.FloatType)):
+    if isinstance(other, (int, float)):
       val += other
     elif isinstance(other, Quantity):
       val += other.Amount(self.units())
@@ -159,7 +162,7 @@ class Quantity(object):
     return self.__add__(other, subtract=True)
 
   def __cmp__(self, other):
-    if isinstance(other, (types.IntType, types.LongType, types.FloatType)):
+    if isinstance(other, (int, float)):
       return cmp(self.Amount(), other)
     elif isinstance(other, Quantity):
       return cmp(self.Amount(), other.Amount(in_units=self.units()))
@@ -171,7 +174,7 @@ class Quantity(object):
     return int(self.Amount())
 
   def __long__(self):
-    return long(self.Amount())
+    return int(self.Amount())
 
   def __float__(self):
     return float(self.Amount())

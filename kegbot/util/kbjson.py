@@ -36,7 +36,7 @@ except ImportError:
     try:
       from django.utils import simplejson as json
     except ImportError:
-      raise ImportError, "Unable to load a json library"
+      raise ImportError("Unable to load a json library")
 
 class JSONEncoder(json.JSONEncoder):
   """JSONEncoder which translate datetime instances to ISO8601 strings."""
@@ -56,11 +56,11 @@ def _ToAttrDict(obj):
   format used in JSONEncoder.  If it does not parse, the value will be left as a
   string.
   """
-  if type(obj) == types.DictType:
+  if type(obj) == dict:
     # Try to convert any "time" or "date" fields into datetime objects.  If the
     # format doesn't match, just leave it alone.
-    for k, v in obj.iteritems():
-      if type(v) in types.StringTypes:
+    for k, v in obj.items():
+      if type(v) in (str,):
         if k.endswith('date') or k.endswith('time') or k.startswith('date') or k.startswith('last_login'):
           try:
             obj[k] = isodate.parse_datetime(v)

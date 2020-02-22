@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
 """Unittest for util module"""
+from __future__ import print_function
 
+from builtins import str
 import unittest
 from . import util
 
@@ -16,7 +18,7 @@ class EnumTestCase(unittest.TestCase):
 
   def testBasicUse(self):
     self.assertNotEqual(self.enum.Foo, self.enum.Bar)
-    print str(self.enum)
+    print(str(self.enum))
     self.assertEqual(self.enum.Foo.Value, 0)
     self.assertEqual(self.enum.Bar.Value, 3)
     self.assertEqual(self.enum.Dip.Value, 4)

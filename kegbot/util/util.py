@@ -18,6 +18,10 @@
 
 """General purpose utilities, bits, and bobs"""
 
+from past.builtins import cmp
+from builtins import str
+from builtins import object
+from future.utils import raise_
 import asyncore
 import datetime
 import errno
@@ -28,6 +32,7 @@ import threading
 import time
 import traceback
 import logging
+from future.utils import with_metaclass
 
 ### Misc classes
 def Enum(*defs):
@@ -38,7 +43,7 @@ def Enum(*defs):
   namedict = {}
   idx = 0
   for item in defs:
-    if type(item) == types.TupleType:
+    if type(item) == tuple:
       name, idx = item
     else:
       name = item
@@ -67,14 +72,14 @@ def Enum(*defs):
       assert self.EnumType is other.EnumType, "Only values from the same enum are comparable"
       return cmp(self.__value, other.__value)
     def __invert__(self):      return constants[maximum - self.__value]
-    def __nonzero__(self):     return bool(self.__value)
+    def __bool__(self):     return bool(self.__value)
     def __repr__(self):        return str(namedict[self.__value])
 
   maximum = len(names) - 1
   constants = {}
   i = 0
   for item in defs:
-    if type(item) == types.TupleType:
+    if type(item) == tuple:
       name, idx = item
     else:
       name, idx = item, i
@@ -136,10 +141,10 @@ class AttrDict(dict):
     try:
       return self.__getitem__(name)
     except KeyError:
-      raise AttributeError, 'No attribute named %s' % name
+      raise_(AttributeError, 'No attribute named %s' % name)
 
 
-class SimpleGraph:
+class SimpleGraph(object):
   """Inspired by http://www.python.org/doc/essays/graphs.html"""
   def __init__(self, vertices):
     """Build up a graph with unidirectional vertices"""
@@ -173,12 +178,11 @@ class SimpleGraph:
 class DeclarativeMeta(type):
   def __new__(meta, class_name, bases, new_attrs):
     cls = type.__new__(meta, class_name, bases, new_attrs)
-    cls.__classinit__.im_func(cls, new_attrs)
+    cls.__classinit__.__func__(cls, new_attrs)
     return cls
 
 
-class Declarative(object):
-  __metaclass__ = DeclarativeMeta
+class Declarative(with_metaclass(DeclarativeMeta, object)):
   def __classinit__(cls, new_attrs):
     pass
 
@@ -200,7 +204,7 @@ class BaseMessage(Declarative):
 
   def __classinit__(cls, new_attrs):
     cls.class_fields = cls.class_fields.copy()
-    for name, value in new_attrs.items():
+    for name, value in list(new_attrs.items()):
       if isinstance(value, BaseField):
         cls.add_field(name, value)
 
@@ -217,7 +221,7 @@ class BaseMessage(Declarative):
 
   def __init__(self, initial=None, **kwargs):
     self._fields = self.class_fields.copy()
-    self._values = dict((k, None) for k in self.class_fields.keys())
+    self._values = dict((k, None) for k in list(self.class_fields.keys()))
 
     if initial is not None:
       self._UpdateFromDict(initial)
@@ -227,14 +231,14 @@ class BaseMessage(Declarative):
   def __str__(self):
     clsname = self.__class__.__name__
     vallist = []
-    for fieldname, fieldvalue in self._values.iteritems():
+    for fieldname, fieldvalue in self._values.items():
       field = self._fields[fieldname]
       vallist.append('%s=%s' % (fieldname, field.ToString(fieldvalue)))
     valstr = (' '.join(vallist))
     return '<%s: %s>' % (clsname, valstr)
 
   def __iter__(self):
-    for name, field in self._GetFields().items():
+    for name, field in list(self._GetFields().items()):
       yield field
 
   def __cmp__(self, other):
@@ -246,12 +250,12 @@ class BaseMessage(Declarative):
     return self._fields
 
   def _UpdateFromDict(self, d):
-    for k, v in d.iteritems():
+    for k, v in d.items():
       setattr(self, k, v)
 
   def AsDict(self):
     ret = {}
-    for k, v in self._fields.iteritems():
+    for k, v in self._fields.items():
       ret[k] = self._values.get(k)
     return ret
 
@@ -317,7 +321,7 @@ def CtoF(t):
 def PidIsAlive(pid):
   try:
     os.kill(pid, 0)
-  except OSError, e:
+  except OSError as e:
     if e.errno == errno.ESRCH:
       return False
   return True

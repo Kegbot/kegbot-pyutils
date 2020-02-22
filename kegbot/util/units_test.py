@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 
 """Unittest for units module"""
+from __future__ import absolute_import
 
+from builtins import str
 import unittest
-import units
+from . import units
 
 UNITS = units.UNITS
 
@@ -12,7 +14,7 @@ class UnitsTestCase(unittest.TestCase):
     converter = units.UnitConverter
 
     # ensure reverse mappings are in place
-    for k, orig_val in converter._table.iteritems():
+    for k, orig_val in converter._table.items():
       from_unit, to_unit = k
       reverse_key = (to_unit, from_unit)
       self.assert_(converter.CanConvert(*reverse_key),
