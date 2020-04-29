@@ -18,156 +18,85 @@
 
 """Various unit conversion routines."""
 
-from past.builtins import cmp
-from builtins import object
-from future.utils import raise_
 import types
-
 from . import util
-from future.utils import with_metaclass
+from enum import Enum
 
-UNITS = util.Enum(*(
-  'Liter',
-  'Milliliter',
-  'Microliter',
-  'Ounce',
-  'Pint',
-  'USGallon',
-  'ImperialGallon',
-  'TwelveOunceBeer',
-  'HalfBarrelKeg',
-  'KbMeterTick', # aka Vision2000 (2200 pulses/liter)
-  'PonyKeg',
-  'Cup',
-  'Quart',
-  'Hogshead',
-))
+
+class UNITS(Enum):
+  Liter = 1000
+  Milliliter = 1
+  Microliter = 0.001
+  Ounce = 29.57353
+  Pint = 473.17648
+  USGallon = 3785.411784
+  ImperialGallon = 4546.09
+  TwelveOunceBeer = 354.882
+  HalfBarrelKeg = 58673.88
+  KbMeterTick =  2.2 # aka Vision2000 (2200 pulses/liter)
+  PonyKeg = 29336.94
+  Cup = 236.588
+  Quart = 946.353
+  Hogshead = 238480.9434
+
 
 # This constant defines the unit type used for the database "volume" field
 RECORD_UNIT = UNITS.Milliliter
 
-CONVERSIONS = {
-    (UNITS.Milliliter, UNITS.KbMeterTick) : 2.2,
-    (UNITS.Liter, UNITS.Milliliter) : 1e3,
-    (UNITS.Liter, UNITS.Microliter) : 1e6,
-    (UNITS.Liter, UNITS.Ounce) : 33.8140227,
-    (UNITS.USGallon, UNITS.Ounce) : 128.0,
-    (UNITS.Cup, UNITS.Ounce) : 8.0,
-    (UNITS.HalfBarrelKeg, UNITS.USGallon) : 15.5,
-    (UNITS.HalfBarrelKeg, UNITS.PonyKeg) : 2.0,
-    (UNITS.Pint, UNITS.Ounce) : 16.0,
-    (UNITS.TwelveOunceBeer, UNITS.Ounce) : 12.0,
-    (UNITS.Hogshead, UNITS.USGallon) : 63.0,
-    (UNITS.Quart, UNITS.Ounce) : 32.0,
-    (UNITS.ImperialGallon, UNITS.Liter) : 4.54609,
-}
-
-class ConversionError(Exception):
-  """Raised if a conversion is not possible"""
-
-class _UnitConverter(object):
-  def __init__(self, table):
-    self._table = {}
-    self._table.update(table)
-
-    all_units = set()
-    for unit_from, unit_to in list(table.keys()):
-      all_units.add(unit_from)
-      all_units.add(unit_to)
-
-    # Generate reverse conversion factors for those given
-    for k, v in table.items():
-      unit_from, unit_to = k
-      reverse_value = 1.0/v
-      reverse_key = (unit_to, unit_from)
-      # TODO: Should we assert if any existing value in the table does not match
-      # computed value? For now, just skipping.
-      if reverse_key not in self._table:
-        self._table[reverse_key] = reverse_value
-
-    unit_graph = util.SimpleGraph(list(self._table.keys()))
-
-    # Generate all possible conversion factors
-    for unit_from in all_units:
-      for unit_to in all_units:
-        if unit_from == unit_to:
-          continue
-        new_key = (unit_from, unit_to)
-        if new_key in self._table:
-          continue
-
-        # Attempt to find a path to these units
-        path = unit_graph.ShortestPath(unit_from, unit_to)
-        if not path:
-          # Not possible, just continue
-          continue
-        value = 1.0
-        prev_unit = path[0]
-        for unit in path[1:]:
-          value = self.Convert(value, prev_unit, unit)
-          prev_unit = unit
-        self._table[new_key] = value
-
-  def CanConvert(self, from_unit, to_unit):
-    return (from_unit, to_unit) in self._table
-
-  def Convert(self, amt, from_unit, to_unit):
-    if from_unit == to_unit:
-      return amt
-    k = (from_unit, to_unit)
-    if k not in self._table:
-      raise_(ConversionError, "Don't know how to convert %s to %s" % (from_unit,
-                                                                     to_unit))
-    return float(amt) * self._table[k]
-
-UnitConverter = _UnitConverter(CONVERSIONS)
-
-
-class _QuantityMeta(type):
-  def __init__(cls, name, bases, attr):
-    super(_QuantityMeta, cls).__init__(name, bases, attr)
-    for unit_name in UNITS.get_names():
-      unit = getattr(UNITS, unit_name)
-      prop_name = 'In' + unit_name + 's'
-      def convert_fn(self, to_units=unit):
-        return self.Amount(to_units)
-      setattr(cls, prop_name, convert_fn)
-
-class Quantity(with_metaclass(_QuantityMeta, object)):
-  DEFAULT_UNITS = UNITS.Milliliter
-
-  def __init__(self, amount, units=None, from_units=None):
-    if units is None:
-      units = self.DEFAULT_UNITS
+class Quantity:
+  def __init__(self, amount, units=UNITS.Milliliter, from_units=None):
     self._units = units
-    if from_units is None:
-      from_units = self._units
-    self._amount = UnitConverter.Convert(amount, from_units, self.units())
+    self._amount = self.convert(amount, units, from_units) if from_units else amount
+    for unit in UNITS:
+      def fn(unit=unit):
+        return self.ConvertTo(unit)._amount
+      setattr(self, 'In{}s'.format(unit.name), fn)
+
+  def __str__(self):
+    return '{} {}'.format(self._amount, self._units.name)
 
   def __add__(self, other, subtract=False):
     val = 0
     if isinstance(other, (int, float)):
       val += other
     elif isinstance(other, Quantity):
-      val += other.Amount(self.units())
+      val += other.ConvertTo(self._units)._amount
     else:
       raise TypeError
     if subtract:
-      val = self.Amount() - val
+      amount = self._amount - val
     else:
-      val += self.Amount()
-    return Quantity(val, self.units())
+      amount = self._amount + val
+    return Quantity(amount, self._units)
 
   def __sub__(self, other):
     return self.__add__(other, subtract=True)
 
-  def __cmp__(self, other):
-    if isinstance(other, (int, float)):
-      return cmp(self.Amount(), other)
-    elif isinstance(other, Quantity):
-      return cmp(self.Amount(), other.Amount(in_units=self.units()))
-    else:
-      raise TypeError
+  def __eq__(self, other):
+    if isinstance(other, Quantity):
+      if self._units == other._units:
+        if self._amount == other._amount:
+          return True
+    return False
+
+  def __ne__(self, other):
+    if isinstance(other, Quantity):
+      if self._units == other._units and self._amount == other._amount:
+        return False
+    return True
+
+  def __lt__(self, other):
+    return self._amount < other.ConvertTo(self._units).Amount()
+
+  def __le__(self, other):
+    return self._amount <= other.ConvertTo(self._units).Amount()
+
+  def __gt__(self, other):
+    return self._amount > other.ConvertTo(self._units).Amount()
+
+  def __ge__(self, other):
+    return self._amount >= other.ConvertTo(self._units).Amount()
+
 
   # TODO: should have just subclassed float
   def __int__(self):
@@ -182,20 +111,19 @@ class Quantity(with_metaclass(_QuantityMeta, object)):
   def units(self):
     return self._units
 
-  def IncAmount(self, amt, units=None):
-    if units is None:
-      self._amount += amt
-    else:
-      self._amount += UnitConverter.Convert(amt, units, self.units())
+  def ConvertTo(self, to_units):
+    if not to_units:
+      raise ValueError('Bad to_units')
+    amount = self.convert(self._amount, self._units, to_units)
+    return Quantity(amount, to_units)
 
-  def SetAmount(self, amt, units=None):
-    self._amount= 0
-    self.IncAmount(amt, units)
+  def Amount(self):
+    return self._amount
 
-  def Clear(self):
-    self.SetAmount(0)
+  @classmethod
+  def convert(cls, amount, units_from, units_to):
+    if not units_to:
+      raise ValueError('Bad units_to')
+    amount_in_ml = float(amount) * units_from.value
+    return amount_in_ml / units_to.value
 
-  def Amount(self, in_units=None):
-    if in_units is None:
-      in_units = self.units()
-    return UnitConverter.Convert(self._amount, self.units(), in_units)
